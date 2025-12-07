@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <title>平面 Voronoi 圖之分治法實作報告</title>
+    <style>
+        body {
+            font-family: "Microsoft JhengHei", Arial, sans-serif;
+            line-height: 1.7;
+            margin: 0;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .container {
+            max-width: 920px;
+            margin: 40px auto;
+            padding: 0 20px 40px;
+        }
+
+        .header {
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 12px;
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            font-size: 1.9em;
+            margin: 0 0 8px;
+        }
+
+        .meta {
+            font-size: 0.95em;
+            color: #555;
+        }
+
+        h2 {
+            font-size: 1.3em;
+            border-left: 4px solid #666;
+            padding-left: 10px;
+            margin: 24px 0 14px;
+        }
+
+        h3 {
+            font-size: 1.05em;
+            margin: 18px 0 8px;
+        }
+
+        p {
+            margin: 6px 0 10px;
+            text-align: justify;
+        }
+
+        ul {
+            padding-left: 22px;
+            margin: 4px 0 10px;
+        }
+
+        li {
+            margin: 2px 0 4px;
+        }
+
+        .section-box {
+            background: #fff;
+            padding: 18px 18px 12px;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+            margin-bottom: 18px;
+        }
+
+        .diagram-placeholder {
+            text-align: center;
+            margin: 16px 0;
+            padding: 10px;
+            border: 1px dashed #bbb;
+            background-color: #f0f0f0;
+            color: #555;
+            font-size: 0.92em;
+        }
+
+        p code,
+        li code {
+            font-family: "Consolas", "Courier New", monospace;
+            font-size: 0.9em;
+            background-color: #f3f3f3;
+            padding: 1px 3px;
+            border-radius: 2px;
+        }
+
+        pre.code-block {
+            background: #f5f5f5;
+            padding: 12px 14px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 14px;
+            margin-top: 12px;
+        }
+
+        pre.code-block code {
+            background: none;
+            padding: 0;
+        }
+
+        .diagram-grid {
+            text-align: center;
+            margin: 16px 0;
+        }
+
+        .diagram-grid-inner {
+            display: grid !important;
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 8px !important;
+            justify-items: center;
+        }
+
+        .diagram-grid-inner img {
+            width: 100% !important;
+            height: auto;
+        }
+
+        .diagram-grid figcaption {
+            font-size: 14px;
+            color: #666;
+            margin-top: 6px;
+        }
+    </style>
+    <!-- Prism 樣式 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1/themes/prism.min.css">
+
+    <!-- Prism 主程式 + Python 語言支援 -->
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-core.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-clike.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-python.min.js"></script>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h1>平面 Voronoi Diagram 之分治法實作成果報告</h1>
+            <div class="meta">
+                <p><strong>題目：</strong>平面 Voronoi Diagram 之分治法實作</p>
+                <p><strong>系級：</strong>資訊工程碩士一年級</p>
+                <p><strong>姓名：</strong>徐士諭</p>
+                <p><strong>學號：</strong>M143040012</p>
+                <p><strong>課程：</strong>演算法設計與分析</p>
+            </div>
+        </div>
+
+        <div class="section-box">
+            <h2>I. 軟體規格書與軟體說明</h2>
+
+            <h3>1.1 輸入與輸出規格</h3>
+            <p>
+                本程式主要處理平面點集資料。輸入可以分為三種來源：
+            </p>
+            <ul>
+                <li>
+                    <strong>互動輸入：</strong><br>
+                    滑鼠在畫布上任意點擊，畫布大小為600<b>x</b>600，點擊後可使用 <i>Run (Finish)</i> 或是 <i>step by step</i> 執行。
+                </li>
+                <li>
+                    <strong>點資料輸入檔：</strong>
+                    <br>文字檔，第一行為 <code>n</code> 表示接下來有 <code>n</code> 個 <code>x</code>、<code>y</code>輸入座標，
+                    直到讀到 <code>0</code> 表示輸入結束。<br>
+                    參考檔案: <a href="./report_source/M143040012_input.txt" target="_blank">📄 下載此範例檔
+                        (input.txt)</a>
+                </li>
+                <li>
+                    <strong>"輸出(存檔)"資料輸入檔：</strong><br>
+                    參考: <a href="./report_source/M143040012_save_input.txt" target="_blank">📄 下載此範例檔
+                        (save_input.txt)</a>
+                </li>
+            </ul>
+            <p>
+                輸出部分同樣以文字檔或畫面顯示為主：
+            </p>
+            <ul>
+                <li>
+                    <strong>邊資料輸出檔：</strong>
+                    文字檔，每一行為一條 Voronoi 邊，格式為：
+                    <code>E x1 y1 x2 y2</code>，分別代表邊的兩個端點座標。
+                </li>
+                <li>
+                    <strong>畫面顯示：</strong>
+                    程式會在視窗中顯示原始點集與對應的 Voronoi Diagram。
+                </li>
+                <li>
+                    <strong>輸出文字檔案範例：</strong>
+                    <p>以下是 APP 生成的實際檔案內容範例（可以直接複製或連結下載並儲存為 <code>.txt</code> 進行測試）：</p>
+
+                    <div style="
+        background-color: #fff; 
+        border: 1px solid #dee2e6; 
+        border-left: 4px solid #007bff; 
+        padding: 15px; 
+        font-family: 'Consolas', monospace; 
+        color: #333; 
+        margin: 10px 0;
+        border-radius: 4px;
+        width: fit-content;
+    ">
+                        P 103 200<br>
+                        P 193 64<br>
+                        P 193 370<br>
+                        P 283 200<br>
+                        E 0 34 193 161<br>
+                        E 0 363 193 261<br>
+                        E 193 161 193 261<br>
+                        E 193 161 437 0<br>
+                        E 193 261 600 476
+                    </div>
+
+                    Link: <a href="./report_source/M143040012_save_input.txt" class="file-link" target="_blank">📄
+                        下載此範例檔
+                        (save_input.txt)</a>
+                </li>
+            </ul>
+
+            <h3>1.2 功能規格與介面規格</h3>
+            <p>
+                主要提供的功能如下：
+            </p>
+            <ul>
+                <li>讀入一組平面點資料，建構對應的 Voronoi 圖。</li>
+                <li>可將建構完成的 Voronoi 邊輸出為文字檔，方便後續分析或比對。</li>
+                <li>提供簡單的視覺化介面，顯示點與 Voronoi 邊的關係。</li>
+                <li>支援 step-by-step 模式，顯示分治與合併的中間狀態。</li>
+            </ul>
+            <p>
+                介面部分如下：<br>
+                <img src="report_source/image/M143040012_APP.png" />
+            </p>
+            <ul>
+                <li>
+                    <strong>執行方式：</strong><br>
+                    由命令列執行，例如：
+                    <code>python M143040012_main.py input.txt</code>，
+                    或是直接執行 <i>M143040012_VoronoiDiagram.exe</i>。
+                </li>
+                <li>
+                    <strong>視窗操作：</strong><br>
+                    點擊畫布會產生 point，可以點擊 "Run (Finish)" 或是 "step by step" 執行。<br>
+                    每次載入測試檔案需要點擊
+                    <span style="color:#d32f2f; font-weight:bold;">「執行下一組」</span>
+                    才會在畫布上畫出 point，這時候可以執行 (Run 或 step by step)。<br>
+                    "儲存檔案" 前需要點 "Run (Finish)" 才可以進行存檔。<br>
+                    讀取檔案分成 "讀取檔案" 和 "讀取(儲存檔)"，兩者不能混合使用。<br>
+                </li>
+            </ul>
+
+            <h3>1.3 軟體測試規劃書</h3>
+            <p>
+                測試大致分成幾類：
+            </p>
+            <ul>
+                <li>少量點測試（1–3 點）：檢查 base case 與基本拓樸是否正確。</li>
+                <li>中等數量點（例如 10–50 點）：觀察整體 Voronoi 圖的形狀與分治合併行為。</li>
+                <li>大量隨機點：產生多組隨機點集，比對結果是否穩定。</li>
+                <li>特殊情況測試：例如點接近共線、或是可能導致上下切線錯誤的測資，以觀察數值穩定性。</li>
+            </ul>
+            <p>
+                各類測試的實際輸入與輸出範例，會整理在後面的
+                「VI. 軟體測試與實驗結果」與「附錄」中。
+            </p>
+
+            <h3>1.4 安裝與使用說明</h3>
+            <p>
+                執行方式：
+            </p>
+            <ul>
+                <li>
+                    <span style="color:#d32f2f; font-weight:bold;">直接執行 <i>M143040012_VoronoiDiagram.exe</i> 即可</span>
+                </li>
+            </ul>
+            <p>
+                python 檔案使用方式 (執行原始檔)：
+            </p>
+            <ul>
+                <li>
+                    <strong>執行環境：</strong>
+                    需要安裝（Python 3.10.18），以及以下套件：
+                    （ pandas, tkinter, numpy 等）。
+                </li>
+                <li>
+                    <strong>編譯／執行方式：</strong>
+                    在專案目錄下執行：
+                    <code>python M143040012_main.py </code>。
+                </li>
+            </ul>
+        </div>
+
+
+        <div class="section-box">
+            <h2>II. 專案說明與問題定義</h2>
+
+            <p>
+                在這份專題中，我實作了一個能建構平面點集 <i>S</i> 的 Voronoi Diagram 程式。
+                演算法核心採用分治法（Divide and Conquer, D&amp;C），理論上的時間複雜度為
+                <i>O(n log n)</i>。實作的重點不是只把圖畫出來，而是要有一個拓樸關係正確、
+                之後可以再利用的資料結構，並且搭配簡單的視覺化方便觀察結果。
+            </p>
+
+            <h3>主要設計目標</h3>
+            <ul>
+                <li>
+                    <strong>拓樸核心：</strong>
+                    以 Winged-Edge 資料結構實作 Voronoi 圖，完整紀錄邊與面之間的鄰接關係。
+                </li>
+                <li>
+                    <strong>無限邊界處理：</strong>
+                    計算一個相對較大的值當作無限遠的點處理無限延伸的邊界，
+                    讓分治合併可以在「理想的無限平面」上進行，而不是一開始就被畫布裁切，因為有些情況交點會在畫布外。
+                </li>
+                <li>
+                    <strong>高效合併：</strong>
+                    在合併階段達成接近 <i>O(n)</i> 的時間複雜度，正確處理線段交點、裁剪以及縫合等操作，
+                    讓整體實作比較貼近教科書上的 D&amp;C 推導。
+                </li>
+            </ul>
+        </div>
+
+        <div class="section-box">
+            <h2>III. 資料結構與幾何表示</h2>
+
+            <p>
+                Winged-Edge 是整個實作的基礎，用來以陣列形式儲存 Voronoi 圖的拓樸鄰接資訊。
+                相較於直接存線段集合，這種做法在合併、刪改邊時比較有系統，也比較不容易出錯。
+            </p>
+
+            <h3>3.1 拓樸核心與陣列結構</h3>
+            <p>
+                主要包含 8 個核心邊陣列（例如 <code>cw_predecessor</code>、<code>ccw_successor</code> 等），
+                以及 2 個查找陣列（<code>edge_around_vertex</code>、<code>edge_around_polygon</code>）用來快速存取
+                頂點與多邊形周圍的邊。
+            </p>
+
+            <p>
+                <strong>點–區域對應：</strong>
+                額外設計 <code>site_of_polygon</code> 陣列，將多邊形 ID 映射回其對應的生成點索引。
+                這個對應關係在 <code>merge_voronoi</code> 重新計算垂直平分線位置時會被反覆使用，
+                是合併步驟中很重要的一個橋樑。
+            </p>
+
+            <h3>3.2 無限邊界與齊次座標（<i>w=0</i>）</h3>
+            <p>
+                為了讓分治合併步驟能在無限平面上進行，而不是一開始就被某個矩形畫布限制，
+                實作中採用齊次座標的簡化表示：
+            </p>
+            <ul>
+                <li><strong>普通頂點（<i>w=1</i>）：</strong>直接儲存實際畫布／笛卡爾座標 <i>(x, y)</i>。</li>
+                <li>
+                    <strong>無限遠點（<i>w=0</i>）：</strong>
+                    一樣儲存實際畫布／笛卡爾座標 <i>(x, y)</i>，只是之後計算會根據 <code>w</code> 來判斷碰撞。
+                </li>
+            </ul>
+            <pre class="code-block"><code class="language-python">class WingedEdge:
+    """
+    索引：
+    - 邊 (Edge) 相關列表使用 'k' 作為索引。
+    - 頂點 (Vertex) 相關列表使用 'j' 作為索引。
+    - 多邊形 (Polygon) 相關列表使用 'i' 作為索引。
+    """
+    def __init__(self):
+        # --- 8 個 "邊" 陣列 (indexed by k) ---
+        self.left_polygon = []
+        self.right_polygon = []
+        self.start_vertex = []
+        self.end_vertex = []
+        self.cw_predecessor = []
+        self.ccw_predecessor = []
+        self.cw_successor = []
+        self.ccw_successor = []
+
+        # --- 2 個 "查找" 陣列 ---
+        self.edge_around_polygon = []  # (indexed by i) 多邊形 i 邊界上的任意一條邊 k
+        self.edge_around_vertex = []   # (indexed by j) 與頂點 j 相鄰的任意一條邊 k
+
+        # --- 3 個 "頂點" 陣列 (indexed by j) ---
+        self.w_vertex = []  # 1 = 普通點, 0 = 無限遠點
+        self.x_vertex = []  # x 座標
+        self.y_vertex = []  # y 座標
+
+        self.site_of_polygon = []  # polygon i 對應哪一個 site index
+</code></pre>
+            <!-- <div class="diagram-placeholder">
+                圖 2：Winged-Edge 拓樸連結示意（預計放置 voronoi_data.zip/Page218-219.gif）
+            </div> -->
+        </div>
+
+        <div class="section-box">
+            <h2>IV. 演算法流程與合併邏輯</h2>
+
+            <h3>4.1 基本情況（Base Cases）</h3>
+            <p>
+                遞迴在 <i>n &le; 3</i> 時停止。這些基本情況主要用來建立拓樸一致的無限 Voronoi 圖，
+                讓上層的合併步驟有一個乾淨的起點。
+            </p>
+            <ul>
+                <li>
+                    <strong>n = 3 拓樸：</strong><br>
+                    使用 <code>math.atan2</code> 對三個點做角度排序，
+                    確保所有邊的 <code>cw/ccw</code> 連結皆遵循一致的逆時針（CCW）順序。
+                    同時為了要判斷這邊邊的左多邊形和右多邊形代表的點我使用外積來判斷 <code>left_p</code>、<code>right_p</code> 的位置，
+                    這樣之後合併時候需要藉由 <code>pid(polygon id)</code> 從 <code>self.site_of_polygon</code> 得到的座標才會正確。
+                </li>
+                <li>
+                    <strong>幾何表示：</strong><br>
+                    射線的起點為 <i>w=1</i> 的外心座標，終點為 <i>w=0</i> 的無線遠點。
+                </li>
+            </ul>
+
+            <h3>4.2 合併邏輯（Merge Logic）</h3>
+            <p>
+                <code>merge_voronoi</code> 函數實作了主要的合併步驟，大致流程如下：
+            </p>
+            <ol>
+                <li>
+                    <strong>尋找上下切線（Tangents）：</strong><br>
+                    先呼叫 <code>upper_tangent</code> 與 <code>lower_tangent</code>，
+                    以 <i>O(n)</i> 的行走法在左右兩側凸包上找出上、下公切線。
+                    這兩條切線決定了分界鏈的起點與終點，也是之後追蹤的邊界。
+                </li>
+                <li>
+                    <strong>Hyperplane 尋找：</strong><br>
+                    合併時會從上切線所對應的垂直平分線開始，呼叫 <code>get_first_collision</code> 找出
+                    左右兩側 Voronoi Diagram 最先被撞到的邊，並比較哪一側的碰撞距離較近，以決定下一段分界線應由哪兩個點（<i>lp</i>、<i>rp</i>）的中垂線所構成。
+                    這個過程可以想像成沿著「左右兩張 Voronoi 圖的交界」一路往下行走。<br><br>
+
+                    每次撞到某條邊 <i>k</i> 之後，需要判斷下一段分界線的方向。由於 <i>k</i> 必定是由
+                    <i>lp</i> 或 <i>rp</i> 其中之一與另一個點所形成的中垂線，因此如果碰撞發生在左側 Voronoi，
+                    就將 <i>lp</i> 更新為與 <i>k</i> 相關的另一個點；若碰撞在右側，則以同樣方式更新 <i>rp</i>。
+                    這樣做可以保證新的點組合與未被替換的點在碰撞位置具有共同外心，使得後續的中垂線方向一致，
+                    並能讓分界鏈正確地向下一步延伸。
+                </li>
+
+                <li>
+                    <strong>拓樸更新與縫合：</strong><br>
+                    在每個交點處，由 <code>update_edge_topology</code> 負責更新
+                    所有受影響的 <code>cw/ccw</code> 指標，將新邊縫合到原有的 Winged-Edge 結構中。
+                    這部分最容易出現「指標接錯」導致畫面整個扭曲，所以程式裡有特別一個輸出資料結構的函式來輔助檢查。
+                </li>
+                <li>
+                    <strong>修剪與清理：</strong><br>
+                    透過 <code>clip_edge</code> 替換舊邊端點，並呼叫
+                    <code>remove_disconnected_components</code> 移除合併後不再連通的幽靈邊，
+                    完成整體接近 <i>O(n)</i> 的合併操作。<br><br>
+
+                    其中，<code>clip_edge</code> 是判斷碰撞邊 <i>k</i> 與 <i>lp</i>、<i>rp</i> 的距離，如果碰撞的是左邊 Voronoi，那麼碰撞邊兩端相對於
+                    <i>lp</i> 更靠近 <i>rp</i> 的刪除，
+                    另一邊也是相同的算法。<code>remove_disconnected_components</code> 則是利用之前維護的 <code>cw/ccw</code> 關係刪去已經沒有相連的邊。
+                </li>
+            </ol>
+
+            <div class="diagram-placeholder">
+                <img src="report_source/image/M143040012_Merged.png" />
+            </div>
+        </div>
+
+        <div class="section-box">
+            <h2>V. 程式設計規範與測試細節</h2>
+
+            <h3>5.1 測試流程</h3>
+            <ul>
+                <li>
+                    <strong>逐步追蹤（Step-by-step）：</strong>
+                    程式中設計 <code>self.history</code> 機制，記錄分治遞迴過程中的關鍵快照
+                    （例如 <code>left_hull</code>、<code>seam_edges</code> 等）。
+                    透過 <code>on_step_click</code> 可以逐步瀏覽這些狀態，對於觀察演算法流程和 debug 都滿實用的。
+                </li>
+            </ul>
+
+            <h3>5.2 凸包維護（Convex Hull Maintenance）</h3>
+            <p>
+                為了維持分治演算法的效率，不在每一層遞迴重複執行 <i>O(n log n)</i> 的凸包計算，
+                而是直接從 Voronoi 圖中恢復凸包資訊：
+            </p>
+            <ul>
+                <li>
+                    <strong>邊界掃描：</strong>
+                    <code>hull_site_indices_from_voronoi</code> 會掃描所有連到
+                    <i>w = 0</i> 頂點的邊，直接找出位於 Convex Hull 上的點索引。
+                </li>
+                <li>
+                    <strong>Hull 排序：</strong>
+                    <code>convex_hull_from_voronoi</code> 使用 <code>atan2</code> 進行角度排序，
+                    回傳逆時針（CCW）順序的點列表，提供公切線計算使用。
+                </li>
+                <li>
+                    <strong>合併時更新 Convex Hull：</strong>
+                    雖然 <code>convex_hull_from_voronoi</code> 只針對凸包上的點做排序，成本不算太高，
+                    但多做幾次還是有優化空間。因此這個函式我只在 <i>base case</i> 階段執行；
+                    在 merge 的時候，則改成沿著邊界走一圈：從左側 Voronoi 的下切線出發，到上切線，
+                    再接到右側 Voronoi 的上切線，最後回到下切線。這條路徑上經過的點，就會形成新的全域 convex hull，
+                    省掉在每次合併後重新跑一次凸包演算法的成本。
+                </li>
+            </ul>
+        </div>
+
+        <div class="section-box">
+            <h2>VI. 測試結果與已知限制</h2>
+
+            <h3>6.1 測試環境</h3>
+            <p>
+                本專題之程式主要在以下環境下測試：
+            </p>
+            <ul>
+                <li>CPU：11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz(2.42Ghz)</li>
+                <li>記憶體：24GB</li>
+                <li>作業系統：Windows 11 家用版 24H2</li>
+                <li>開發與執行環境：Python 3.10.18</li>
+            </ul>
+
+            <h3>6.2 實驗結果</h3>
+            <p>
+                為了確認實作是否符合預期，我用幾種不同類型的點集來測試：
+            </p>
+
+            <figure class="diagram-grid">
+                <div class="diagram-grid-inner">
+                    <img src="report_source/image/M143040012_base1.png">
+                    <img src="report_source/image/M143040012_base2.png">
+                    <img src="report_source/image/M143040012_base3.png">
+                    <!-- 想再多放就繼續加 img -->
+                </div>
+                <figcaption>圖 1：Voronoi 1~3 點</figcaption>
+            </figure>
+            <figure class="diagram-grid">
+                <div class="diagram-grid-inner">
+                    <img src="report_source/image/M143040012_medium1.png">
+                    <img src="report_source/image/M143040012_medium2.png">
+                    <img src="report_source/image/M143040012_medium3.png">
+                    <!-- 想再多放就繼續加 img -->
+                </div>
+                <figcaption>圖 2：Voronoi 10~50 點</figcaption>
+            </figure>
+            <figure class="diagram-grid">
+                <div class="diagram-grid-inner">
+                    <img src="report_source/image/M143040012_large1.png">
+                    <img src="report_source/image/M143040012_large2.png">
+                    <img src="report_source/image/M143040012_large3.png">
+                    <!-- 想再多放就繼續加 img -->
+                </div>
+                <figcaption>圖 3：Voronoi 100~500 點</figcaption>
+            </figure>
+            <figure class="diagram-grid">
+                <div class="diagram-grid-inner">
+                    <img src="report_source/image/M143040012_special1.png">
+                    <img src="report_source/image/M143040012_special2.png">
+                    <img src="report_source/image/M143040012_special3.png">
+                    <!-- 想再多放就繼續加 img -->
+                </div>
+                <figcaption>圖 3：Voronoi 100~500 點</figcaption>
+            </figure>
+
+            <h3>6.4 已知限制</h3>
+            <ul>
+                <li>在數值範圍非常大的座標（例如數萬以上）下，浮點誤差的影響會變得比較明顯。</li>
+                <li>目前的實作主要針對一般情況，對於刻意設計的特別測資（如大量整齊的點）尚未完全最佳化，若是同個點有超過三個邊的情況程式會無法正確運作，即使正確也大概率是碰巧。</li>
+            </ul>
+        </div>
+
+        <div class="section-box">
+            <h2>VII. 實作心得與後續可能改進</h2>
+
+            <h3>7.1 實作過程中的學習</h3>
+            <p>
+                一開始在看教科書上的分治法 Voronoi 圖建構時，對「只畫出分界鏈」這個想法有點抽象。
+                實際實作 Winged-Edge 之後，才比較能體會為什麼需要這麼完整的拓樸結構，
+                而不只是存一堆線段。尤其在合併階段要「縫合」左右兩側圖的時候，
+                如果拓樸資訊不夠清楚，程式很容易改到後面就改不下去。
+            </p>
+            <p>
+                另一個感覺比較深的是浮點數相關的問題。理論上垂直平分線、外心的位置都寫得很乾淨，
+                但實際上只要點的配置稍微極端一點，數值誤差就會放大，
+                最後在畫面上看到的就是「邊沒有交在同一個點」之類的怪現象。
+            </p>
+            <p>
+                最麻煩的部分當然就是合併的部分，寫完 base case 後我還想說只剩下最後一個部分就可以完成了，但沒想到這邊也是最困難的部分，
+                從找上下切線時候遇到共線會錯誤到碰撞的線消除了但是懸浮很多線道維護複雜的資料結構都花了我相當長的時間。
+            </p>
+
+            <h3>7.2 可能的改進方向</h3>
+            <ul>
+                <li>
+                    <strong>更完整的錯誤處理：</strong>
+                    目前主要是用 vscode 來進行 step-by-step 和 輸出資料結構來判斷錯誤位置。
+                    未來可以把錯誤情況記錄下來，整理成更系統化的 debug 工具。
+                </li>
+                <li>
+                    <strong>互動式視覺化：</strong>
+                    目前的視覺化已能基本顯示結果，但如果有時間，可以增加滑鼠拖曳點、即時更新 Voronoi 圖等功能，
+                    會更直覺地展示分治法的效果。
+                </li>
+                <li>
+                    <strong>更完整的事前規劃：</strong>
+                    這次實作上碰到許多困難導致我需要頻繁的往前改動寫好的程式碼，我認為很大一部份是因為我是邊做邊學習算法而不是先了解了算法再進行實作，
+                    下次如果有類似的專題，我認為我可以先進行一些規劃，這樣可以減少時間的浪費。
+                </li>
+            </ul>
+
+            <p>
+                整體來說，這次實作讓我對「幾何 + 分治 + 資料結構」這三者之間的關係有更具體的感覺。
+                原本只是在課堂上聽到的 <i>O(n log n)</i> 演算法，透過實際寫程式、對照測試結果，
+                感覺比較像是真的用過一次，而不只是看過一次。
+            </p>
+        </div>
+
+        <div class="section-box">
+            <h2>VIII. 附錄</h2>
+            <p>
+                本附錄提供本專題相關之補充資料，包括程式原始碼合併檔、
+                測試輸入檔與測試輸出檔之連結。所有檔案皆使用相對路徑，並已納入最終提交之壓縮檔中。
+            </p>
+
+            <h3>8.1 程式執行檔</h3>
+            <ul>
+                <li><a href="./M143040012_VoronoiDiagram.exe">M143040012_VoronoiDiagram.exe</a></li>
+            </ul>
+            <h3>8.2 程式原始碼合併檔</h3>
+            <ul>
+                <li><a href="./Merged_file/M143040012_main.py">M143040012_main.py</a></li>
+            </ul>
+            <h3>8.3 程式原始碼</h3>
+            <ul>
+                <li><a href="./Srouce_code/M143040012_sourcecode.zip">M143040012_sourcecode.zip</a></li>
+            </ul>
+
+            <h3>8.4 測試輸入檔</h3>
+            <ul>
+                <li><a href="./report_source/M143040012_1~3.txt">M143040012_1~3.txt</a>（少量點測試）</li>
+                <li><a href="./report_source/M143040012_10~50.txt">M143040012_10~50.txt</a>（隨機 10~50 點）</li>
+                <li><a href="./report_source/M143040012_100~500.txt">M143040012_100~500.txt</a>（大規模測試）</li>
+                <li><a href="./report_source/M143040012_special.txt">M143040012_special.txt</a>（特殊資料測試）</li>
+                <li><a href="./report_source/M143040012_input.txt">M143040012_input.txt</a>（測試檔範例）</li>
+            </ul>
+
+            <h3>8.5 測試輸出檔</h3>
+            <ul>
+                <li><a href="./report_source/M143040012_save_input.txt">M143040012_save_input.txt</a>(範例輸出)</li>
+                <li><a href="./report_source/M143040012_output1.txt">M143040012_output1.txt</a>(1~3輸出)</li>
+                <li><a href="./report_source/M143040012_output2.txt">M143040012_output2.txt</a>(10~50輸出)</li>
+                <li><a href="./report_source/M143040012_output3.txt">M143040012_output3.txt</a>(100~500輸出)</li>
+                <li><a href="./report_source/M143040012_output4.txt">M143040012_output4.txt</a>(特殊資料輸出)</li>
+            </ul>
+        </div>
+
+    </div>
+
+</body>
+
+</html>
